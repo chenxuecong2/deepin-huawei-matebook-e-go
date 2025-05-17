@@ -44,6 +44,7 @@ sudo apt update -y
 case $(uname -m) in
 x86_64)
     # 在 x86 上构建，需要利用 qemu 并开启 binfmt 异架构支持
+    sudo apt install libasound2=1.2.12-1deepin1 libasound2-data
     sudo apt-get install -y qemu-user-static binfmt-support mmdebstrap arch-test usrmerge usr-is-merged qemu-system-misc systemd-container fdisk dosfstools
     sudo systemctl restart systemd-binfmt
     ;;
@@ -137,9 +138,6 @@ curl -L http://ftp.cn.debian.org/debian/pool/main/d/device-tree-compiler/libfdt1
 run_command_in_chroot $TMP "apt update -y && apt install -y \
     /tmp/libfmt9.deb \
     /tmp/libfdt1.deb"
-
-# 安装必要的软件包
-run_command_in_chroot $TMP "apt install -y raspi-config raspberrypi-sys-mods firmware-brcm80211 raspi-firmware bluez-firmware"
 
 # 安装内核
 sudo cp debs/**.deb $ROOTFS
