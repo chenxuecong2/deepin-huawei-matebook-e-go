@@ -5,7 +5,7 @@ set -xe
 export DEBIAN_FRONTEND=noninteractive
 BUILD_TYPE="$1"
 ROOTFS="rootfs"
-TARGET_DEVICE=raspberrypi
+TARGET_DEVICE=gaokun
 ARCH="arm64"
 DISKIMG="deepin-$TARGET_DEVICE.img"
 IMAGE_SIZE=$( [ "$BUILD_TYPE" == "desktop" ] && echo 12288 || echo 4096 )
@@ -94,7 +94,7 @@ sudo echo "deepin-$TARGET_DEVICE" | sudo tee $ROOTFS/etc/hostname > /dev/null
 
 # 创建磁盘文件
 dd if=/dev/zero of=$DISKIMG bs=1M count=$IMAGE_SIZE
-sudo fdisk deepin-raspberrypi.img << EOF
+sudo fdisk deepin-gaokun.img << EOF
 n
 p
 1
@@ -124,71 +124,12 @@ sudo cp -a $ROOTFS/* $TMP
 sudo mkdir $TMP/boot/firmware
 sudo mount "${LOOP}p1" $TMP/boot/firmware
 
-# 拷贝引导加载程序GPU 固件等, 从 https://github.com/raspberrypi/firmware/tree/master/boot 官方仓库中拷贝，另外放入了 cmdline.txt 和 config.txt 配置
 sudo cp -r firmware/* $TMP/boot/firmware
-
-# 配置 config.txt
-sudo tee $TMP/boot/firmware/config.txt <<EOF
-# For more options and information see
-# http://rptl.io/configtxt
-# Some settings may impact device functionality. See link above for details
-
-# Uncomment some or all of these to enable the optional hardware interfaces
-#dtparam=i2c_arm=on
-#dtparam=i2s=on
-#dtparam=spi=on
-
-# Enable audio (loads snd_bcm2835)
-dtparam=audio=on
-
-# Additional overlays and parameters are documented
-# /boot/firmware/overlays/README
-
-# Automatically load overlays for detected cameras
-camera_auto_detect=1
-
-# Automatically load overlays for detected DSI displays
-display_auto_detect=1
-
-# Automatically load initramfs files, if found
-auto_initramfs=1
-
-# Enable DRM VC4 V3D driver
-dtoverlay=vc4-kms-v3d
-max_framebuffers=2
-
-# Don't have the firmware create an initial video= setting in cmdline.txt.
-# Use the kernel's default instead.
-disable_fw_kms_setup=1
-
-# Run in 64-bit mode
-arm_64bit=1
-
-# Disable compensation for displays with overscan
-disable_overscan=1
-
-# Run as fast as firmware / board allows
-arm_boost=1
-
-[cm4]
-# Enable host mode on the 2711 built-in XHCI USB controller.
-# This line should be removed if the legacy DWC2 controller is required
-# (e.g. for USB device mode) or if USB support is not required.
-otg_mode=1
-
-[cm5]
-dtoverlay=dwc2,dr_mode=host
-
-[all]
-EOF
 
 setup_chroot_environment $TMP
 
 sudo rm -f $TMP/etc/resolv.conf
 sudo cp /etc/resolv.conf $TMP/etc/resolv.conf
-# 安装树莓派的 raspi-config
-mkdir -p $TMP/etc/apt/sources.list.d
-echo "deb [trusted=yes] http://archive.raspberrypi.org/debian/ bookworm main" | sudo tee $TMP/etc/apt/sources.list.d/raspberrypi.list
 
 # deepin 源里没 libfmt9，已经到 libfmt10 了，从 debian 下载 deb 包
 curl -L http://ftp.cn.debian.org/debian/pool/main/f/fmtlib/libfmt9_9.1.0+ds1-2_arm64.deb -o $TMP/tmp/libfmt9.deb
@@ -197,18 +138,19 @@ run_command_in_chroot $TMP "apt update -y && apt install -y \
     /tmp/libfmt9.deb \
     /tmp/libfdt1.deb"
 
-# raspi-config是树莓派的配置工具，firmware-brcm80211 包含无线网卡驱动
+# 安装必要的软件包
 run_command_in_chroot $TMP "apt install -y raspi-config raspberrypi-sys-mods firmware-brcm80211 raspi-firmware bluez-firmware"
 
 # 安装内核
-run_command_in_chroot $TMP "apt install -y \
-    linux-image-rpi-v8 \
-    linux-image-rpi-2712 \
-    linux-headers-rpi-v8 \
-    linux-headers-rpi-2712"
+sudo cp debs/**.deb $ROOTFS
 
-# 在物理设备上需要添加 cmdline.txt 定义 Linux内核启动时的命令行参数
-echo "console=serial0,115200 console=tty1 root=LABEL=rootfs rootfstype=ext4 fsck.repair=yes rootwait quiet init=/usr/lib/raspberrypi-sys-mods/firstboot splash plymouth.ignore-serial-consoles" | sudo tee $TMP/boot/firmware/cmdline.txt
+run_command_in_chroot $TMP "dpkg -i --force-overwrite /*.deb \"
+
+sudo cp $ROOTFS/boot/initrd*6.14* $TMP/boot/firmware/initrd.img
+
+
+
+
 # 编辑分区表
 sudo tee $TMP/etc/fstab << EOF
 proc          /proc           proc    defaults          0       0
@@ -232,7 +174,8 @@ run_command_in_chroot $TMP "locale-gen"
 # 清理缓存
 run_command_in_chroot $TMP "apt clean
 rm -rf /var/cache/apt/archives/*
-rm /etc/apt/sources.list.d/raspberrypi.list
+rm /boot/*
+rm /*.deb
 "
 sudo umount -l $TMP
 
