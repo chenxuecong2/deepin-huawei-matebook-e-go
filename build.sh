@@ -156,9 +156,7 @@ LABEL=bootfs  /boot/firmware  vfat    defaults          0       2
 LABEL=rootfs  /               ext4    defaults,rw,errors=remount-ro,x-systemd.growfs  0       1
 EOF
 
-run_command_in_chroot $TMP "sed -i -E 's/#[[:space:]]?(en_US.UTF-8[[:space:]]+UTF-8)/\1/g' /etc/locale.gen
-sed -i -E 's/#[[:space:]]?(zh_CN.UTF-8[[:space:]]+UTF-8)/\1/g' /etc/locale.gen
-"
+run_command_in_chroot $TMP "sed -i -E 's/#[[:space:]]?(en_US.UTF-8[[:space:]]+UTF-8)/\1/g' /etc/locale.gen; sed -i -E 's/#[[:space:]]?(zh_CN.UTF-8[[:space:]]+UTF-8)/\1/g' /etc/locale.gen"
 
 run_command_in_chroot $TMP "useradd -m -g users deepin && usermod -a -G sudo deepin
 chsh -s /bin/bash deepin
