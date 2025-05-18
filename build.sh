@@ -114,18 +114,18 @@ EOF
 # 格式化
 LOOP=$(sudo losetup -Pf --show $DISKIMG)
 sudo mkfs.fat -F32 "${LOOP}p1"
-sudo dosfslabel "${LOOP}p1" bootfs
+sudo dosfslabel "${LOOP}p1" efi
 sudo mkfs.ext4 "${LOOP}p2" # 根分区 (/)
 sudo e2label "${LOOP}p2" rootfs
 
-TMP=`mktemp -d`
+TMP=$(mktemp -d)
 sudo mount "${LOOP}p2" $TMP
 sudo cp -a $ROOTFS/* $TMP
 
-sudo mkdir $TMP/boot/firmware
-sudo mount "${LOOP}p1" $TMP/boot/firmware
+sudo mkdir $TMP/boot/efi
+sudo mount "${LOOP}p1" $TMP/boot/efi
 
-sudo cp -r firmware/* $TMP/boot/firmware
+sudo cp -r firmware/* $TMP/boot/efi
 
 setup_chroot_environment $TMP
 
@@ -144,17 +144,18 @@ sudo cp debs/**.deb $ROOTFS
 
 run_command_in_chroot $TMP "dpkg -i --force-overwrite /*.deb \"
 
-sudo cp $ROOTFS/boot/initrd*6.14* $TMP/boot/firmware/initrd.img
-
-
-
+sudo cp $ROOTFS/boot/initrd*6.14* $TMP/boot/efi/initrd.img
 
 # 编辑分区表
 sudo tee $TMP/etc/fstab << EOF
 proc          /proc           proc    defaults          0       0
-LABEL=bootfs  /boot/firmware  vfat    defaults          0       2
+LABEL=bootfs  /boot/efi  vfat    defaults          0       2
 LABEL=rootfs  /               ext4    defaults,rw,errors=remount-ro,x-systemd.growfs  0       1
 EOF
+
+run_command_in_chroot $TMP "sed -i -E 's/#[[:space:]]?(en_US.UTF-8[[:space:]]+UTF-8)/\1/g' /etc/locale.gen
+sed -i -E 's/#[[:space:]]?(zh_CN.UTF-8[[:space:]]+UTF-8)/\1/g' /etc/locale.gen
+"
 
 run_command_in_chroot $TMP "useradd -m -g users deepin && usermod -a -G sudo deepin
 chsh -s /bin/bash deepin
