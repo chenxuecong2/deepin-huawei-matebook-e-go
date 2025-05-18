@@ -24,4 +24,3 @@ procps
 wpasupplicant
 dmidecode
 ntpsec-ntpdate
-linux-firmware
