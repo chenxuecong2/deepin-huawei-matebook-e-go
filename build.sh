@@ -44,8 +44,8 @@ sudo apt update -y
 case $(uname -m) in
 x86_64)
     # 在 x86 上构建，需要利用 qemu 并开启 binfmt 异架构支持
-    sudo apt install libasound2=1.2.12-1deepin1 libasound2-data
-    sudo apt-get install -y qemu-user-static binfmt-support mmdebstrap arch-test usrmerge usr-is-merged qemu-system-misc systemd-container fdisk dosfstools
+    sudo apt install aptitude
+    sudo aptitude install -y qemu-user-static binfmt-support mmdebstrap arch-test usrmerge usr-is-merged qemu-system-misc systemd-container fdisk dosfstools 
     sudo systemctl restart systemd-binfmt
     ;;
 aarch64)
